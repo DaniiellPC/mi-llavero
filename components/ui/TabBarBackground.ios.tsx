@@ -1,5 +1,6 @@
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useRoute } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
+import React from 'react';
 import { StyleSheet } from 'react-native';
 
 export default function BlurTabBarBackground() {
@@ -15,5 +16,17 @@ export default function BlurTabBarBackground() {
 }
 
 export function useBottomTabOverflow() {
-  return useBottomTabBarHeight();
+  const route = useRoute();
+  
+  // Lista de rutas que están fuera del tab navigator
+  const nonTabRoutes = ['mis-llaves-details'];
+  
+  // Si estamos en una ruta que no es de tabs, retorna 0
+  if (nonTabRoutes.includes(route.name)) {
+    return 0;
+  }
+  
+  // Para rutas de tabs en iOS, usamos la altura estándar del tab bar
+  // Esto evita el problema del hook que no puede encontrar el contexto
+  return 83; // Altura estándar del tab bar en iOS
 }
