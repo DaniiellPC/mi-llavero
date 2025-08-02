@@ -5,21 +5,11 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { Notifier, NotifierComponents, NotifierWrapper } from 'react-native-notifier';
 
 import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { SwipeableRow } from '@/components/SwipeableRow';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-
-// Storage global simple para las llaves (en producción usar AsyncStorage)
-const globalKeysStorage: { [bankId: string]: SavedKey[] } = {};
-
-interface SavedKey {
-  id: number;
-  name: string;
-  value: string;
-  createdAt: string;
-  updatedAt: string;
-  bankId: string;
-}
+import { SavedKey, deleteKey, getBankKeys, saveKey, updateKey } from '@/data/keysStorage';
 
 export default function MisLlavesDetailsScreen() {
   const params = useLocalSearchParams();
@@ -27,19 +17,20 @@ export default function MisLlavesDetailsScreen() {
   const bankName = params.bankName as string;
   
   const [modalVisible, setModalVisible] = useState(false);
+  const [confirmDeleteModalVisible, setConfirmDeleteModalVisible] = useState(false);
   const [keyName, setKeyName] = useState('');
   const [keyValue, setKeyValue] = useState('');
   const [savedKeys, setSavedKeys] = useState<SavedKey[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingKey, setEditingKey] = useState<SavedKey | null>(null);
+  const [keyToDelete, setKeyToDelete] = useState<SavedKey | null>(null);
+  const [resetSwipeId, setResetSwipeId] = useState<number | null>(null);
   const keyValueInputRef = React.useRef<TextInput>(null);
 
   // Cargar las llaves del banco actual al montar el componente
   useEffect(() => {
-    if (bankId && globalKeysStorage[bankId]) {
-      setSavedKeys(globalKeysStorage[bankId]);
-    } else {
-      setSavedKeys([]);
+    if (bankId) {
+      setSavedKeys(getBankKeys(bankId));
     }
   }, [bankId]);
 
@@ -74,15 +65,8 @@ export default function MisLlavesDetailsScreen() {
         updatedAt: new Date().toLocaleDateString(), // Actualizar solo updatedAt
       };
 
-      // Inicializar el array del banco si no existe
-      if (!globalKeysStorage[bankId]) {
-        globalKeysStorage[bankId] = [];
-      }
-
       // Actualizar en el storage global
-      globalKeysStorage[bankId] = globalKeysStorage[bankId].map(key => 
-        key.id === editingKey.id ? updatedKey : key
-      );
+      updateKey(bankId, updatedKey);
 
       // Actualizar en el estado local
       setSavedKeys(prev => prev.map(key => 
@@ -102,13 +86,8 @@ export default function MisLlavesDetailsScreen() {
         bankId: bankId
       };
 
-      // Inicializar el array del banco si no existe
-      if (!globalKeysStorage[bankId]) {
-        globalKeysStorage[bankId] = [];
-      }
-
       // Agregar al storage global
-      globalKeysStorage[bankId] = [...globalKeysStorage[bankId], newKey];
+      saveKey(bankId, newKey);
 
       // Agregar al array de llaves guardadas del estado local
       setSavedKeys(prev => [...prev, newKey]);
@@ -135,6 +114,52 @@ export default function MisLlavesDetailsScreen() {
 
   const handleBackPress = () => {
     router.back();
+  };
+
+  const handleDeleteKey = (key: SavedKey) => {
+    setKeyToDelete(key);
+    setConfirmDeleteModalVisible(true);
+  };
+
+  const confirmDeleteKey = () => {
+    if (keyToDelete && bankId) {
+      // Eliminar del storage global
+      deleteKey(bankId, keyToDelete.id);
+      
+      // Actualizar el estado local
+      setSavedKeys(prev => prev.filter(key => key.id !== keyToDelete.id));
+      
+      console.log('Llave eliminada:', keyToDelete.name);
+      
+      // Mostrar notificación de éxito
+      Notifier.showNotification({
+        title: 'Llave eliminada',
+        description: `La llave "${keyToDelete.name}" se ha eliminado exitosamente`,
+        duration: 3000,
+        showAnimationDuration: 800,
+        hideAnimationDuration: 800,
+        swipeEnabled: true,
+        Component: NotifierComponents.Alert,
+        componentProps: {
+          alertType: 'success',
+        },
+      });
+    }
+    
+    setConfirmDeleteModalVisible(false);
+    setKeyToDelete(null);
+  };
+
+  const cancelDeleteKey = () => {
+    setConfirmDeleteModalVisible(false);
+    
+    // Resetear el swipe de la llave que no se eliminó
+    if (keyToDelete) {
+      setResetSwipeId(keyToDelete.id);
+      setTimeout(() => setResetSwipeId(null), 50);
+    }
+    
+    setKeyToDelete(null);
   };
 
   const handleCopyToClipboard = async (keyValue: string) => {
@@ -172,47 +197,52 @@ export default function MisLlavesDetailsScreen() {
   };
 
   const renderKeyItem = ({ item }: { item: SavedKey }) => (
-    <TouchableOpacity
-      style={styles.keyItem}
-      onPress={() => handleEditPress(item)}
-      activeOpacity={0.7}
+    <SwipeableRow 
+      onDelete={() => handleDeleteKey(item)}
+      resetSwipe={resetSwipeId === item.id}
     >
-      <View style={styles.keyItemContent}>
-        <View style={styles.keyInfo}>
-          <ThemedText type="defaultSemiBold" style={styles.keyName}>
-            {item.name}
-          </ThemedText>
-          <ThemedText style={styles.keyValue} numberOfLines={2}>
-            {item.value}
-          </ThemedText>
-          <ThemedText style={styles.keyDate}>
-            Actualizado: {item.updatedAt}
-          </ThemedText>
-        </View>
-        <View style={styles.keyActions}>
-          <TouchableOpacity
-            style={styles.copyButton}
-            onPress={(event) => {
-              event.stopPropagation(); // Evitar que se propague al TouchableOpacity padre
-              handleCopyToClipboard(item.value);
-            }}
-            activeOpacity={0.7}
-          >
+      <TouchableOpacity
+        style={styles.keyItem}
+        onPress={() => handleEditPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.keyItemContent}>
+          <View style={styles.keyInfo}>
+            <ThemedText type="defaultSemiBold" style={styles.keyName}>
+              {item.name}
+            </ThemedText>
+            <ThemedText style={styles.keyValue} numberOfLines={2}>
+              {item.value}
+            </ThemedText>
+            <ThemedText style={styles.keyDate}>
+              Actualizado: {item.updatedAt}
+            </ThemedText>
+          </View>
+          <View style={styles.keyActions}>
+            <TouchableOpacity
+              style={styles.copyButton}
+              onPress={(event) => {
+                event.stopPropagation(); // Evitar que se propague al TouchableOpacity padre
+                handleCopyToClipboard(item.value);
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                name="doc.on.clipboard"
+                size={20}
+                color="#D4AF37"
+              />
+            </TouchableOpacity>
             <IconSymbol
-              name="doc.on.clipboard"
-              size={20}
+              name="key.fill"
+              size={24}
               color="#D4AF37"
+              style={styles.keyIcon}
             />
-          </TouchableOpacity>
-          <IconSymbol
-            name="key.fill"
-            size={24}
-            color="#D4AF37"
-            style={styles.keyIcon}
-          />
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </SwipeableRow>
   );
 
   return (
@@ -388,6 +418,67 @@ export default function MisLlavesDetailsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal de confirmación para eliminar llave */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={confirmDeleteModalVisible}
+        onRequestClose={cancelDeleteKey}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <Pressable 
+            style={styles.confirmModalBackdrop} 
+            onPress={cancelDeleteKey}
+          />
+          <ThemedView style={styles.confirmModalContent}>
+            <View style={styles.confirmModalHeader}>
+              <IconSymbol
+                name="trash.fill"
+                size={48}
+                color="#FF3B30"
+                style={styles.confirmDeleteIcon}
+              />
+              <ThemedText type="title" style={styles.confirmTitle}>
+                ¿Eliminar llave?
+              </ThemedText>
+            </View>
+            
+            <ThemedText style={styles.confirmMessage}>
+              ¿Estás seguro de que quieres eliminar la llave{' '}
+              <ThemedText style={styles.keyNameHighlight}>
+                &quot;{keyToDelete?.name}&quot;
+              </ThemedText>?
+            </ThemedText>
+            
+            <ThemedText style={styles.confirmWarning}>
+              Esta acción no se puede deshacer.
+            </ThemedText>
+
+            <View style={styles.confirmModalActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={cancelDeleteKey}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={styles.cancelButtonText}>
+                  Cancelar
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={confirmDeleteKey}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={styles.deleteButtonText}>
+                  Eliminar
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
       </View>
     </NotifierWrapper>
   );
@@ -456,7 +547,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 0,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -622,5 +713,115 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  // Estilos para el modal de confirmación de eliminar
+  confirmModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  confirmModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    margin: 20,
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 15,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  confirmModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  confirmDeleteIcon: {
+    marginBottom: 12,
+  },
+  confirmTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FF3B30',
+    textAlign: 'center',
+  },
+  confirmMessage: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 12,
+    color: '#2C2C2C',
+  },
+  keyNameHighlight: {
+    fontWeight: 'bold',
+    color: '#D4AF37',
+  },
+  confirmWarning: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 24,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#E5E5E5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
