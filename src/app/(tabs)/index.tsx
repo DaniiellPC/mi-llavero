@@ -4,14 +4,14 @@ import React, { useState } from 'react';
 import { FlatList, Modal, Pressable, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { SwipeableRow } from '@/components/SwipeableRow';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { BankItem, availableBanks } from '@/data/bancos';
-import { getBankKeysCount, hasBankKeys } from '@/data/keysStorage';
-import { misLlavesStyles as styles } from '@/styles/misLlavesStyles';
+import ParallaxScrollView from '@/src/components/ParallaxScrollView';
+import { SwipeableRow } from '@/src/components/SwipeableRow';
+import { ThemedText } from '@/src/components/ThemedText';
+import { ThemedView } from '@/src/components/ThemedView';
+import { IconSymbol } from '@/src/components/ui/IconSymbol';
+import { BankItem, availableBanks } from '@/src/data/bancos';
+import { getBankKeysCount, hasBankKeys } from '@/src/data/keysStorage';
+import { misLlavesStyles as styles } from '@/src/styles/misLlavesStyles';
 
 export default function MisLlavesScreen() {
   const [modalVisible, setModalVisible] = useState(false);

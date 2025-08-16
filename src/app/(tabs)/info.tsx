@@ -1,8 +1,8 @@
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { infoStyles as styles } from '@/styles/infoStyles';
+import ParallaxScrollView from '@/src/components/ParallaxScrollView';
+import { ThemedText } from '@/src/components/ThemedText';
+import { ThemedView } from '@/src/components/ThemedView';
+import { IconSymbol } from '@/src/components/ui/IconSymbol';
+import { infoStyles as styles } from '@/src/styles/infoStyles';
 
 export default function InfoScreen() {
   return (

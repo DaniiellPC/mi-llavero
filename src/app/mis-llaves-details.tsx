@@ -4,13 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { Notifier, NotifierComponents, NotifierWrapper } from 'react-native-notifier';
 
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { SwipeableRow } from '@/components/SwipeableRow';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { SavedKey, deleteKey, getBankKeys, saveKey, updateKey } from '@/data/keysStorage';
-import { misLlavesDetailsStyles as styles } from '@/styles/misLlavesDetailsStyles';
+import ParallaxScrollView from '@/src/components/ParallaxScrollView';
+import { SwipeableRow } from '@/src/components/SwipeableRow';
+import { ThemedText } from '@/src/components/ThemedText';
+import { ThemedView } from '@/src/components/ThemedView';
+import { IconSymbol } from '@/src/components/ui/IconSymbol';
+import { SavedKey, deleteKey, getBankKeys, saveKey, updateKey } from '@/src/data/keysStorage';
+import { misLlavesDetailsStyles as styles } from '@/src/styles/misLlavesDetailsStyles';
 
 export default function MisLlavesDetailsScreen() {
   const params = useLocalSearchParams();
